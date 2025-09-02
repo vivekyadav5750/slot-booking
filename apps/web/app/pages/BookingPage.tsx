@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import CustomDatePicker from "../components/DatePicker";
-import SlotSelector from "../components/SlotSelector";
+import SlotSelector, { getSlotEndTime } from "../components/SlotSelector";
 
-const API_BASE = "http://localhost:4000/api"; // backend API
+const API_BASE = "http://localhost:4000/api";
 
 export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -36,7 +36,7 @@ export default function BookingPage() {
 
   const bookSlot = async () => {
     if (!selectedDate || !selectedSlot) {
-      setSuccessMessage("❌ Please select a date and slot before booking.");
+      setSuccessMessage("Please select a date and slot before booking.");
       return;
     }
     try {
@@ -45,16 +45,30 @@ export default function BookingPage() {
         date: formattedDate,
         time: selectedSlot,
       });
-      setSuccessMessage(`✅ ${response.data.message}`);
+      setSuccessMessage(
+        `Successfully Booked Slot from ${selectedSlot} to ${getSlotEndTime(selectedSlot)} on ${formattedDate}.`
+      );
       setSelectedSlot(null);
       fetchSlots(selectedDate);
     } catch (error) {
       console.error("Error booking slot:", error);
-      setSuccessMessage("❌ Failed to book slot (already taken or error).");
+      setSuccessMessage("Failed to book slot (already taken or error).");
     }
   };
 
+  // Disable dates beyond two weeks from today
+  const today = new Date();
+  const twoWeeksLater = new Date();
+  twoWeeksLater.setDate(today.getDate() + 14);
+
   const disabledDates: Date[] = [];
+  for (let i = 0; i < 365; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    if (date > twoWeeksLater) {
+      disabledDates.push(new Date(date));
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex flex-col items-center p-6">
@@ -67,28 +81,31 @@ export default function BookingPage() {
         {openDate ? "Close Date Picker" : "Select Date"}
       </button>
 
-      {openDate && (
-        <CustomDatePicker
-          selectedDate={selectedDate}
-          onChange={setSelectedDate}
-          disabledDates={disabledDates}
-        />
-      )}
+      <div className="flex space-x-2">
+        {openDate && (
+          <>
+            <CustomDatePicker
+              selectedDate={selectedDate}
+              onChange={setSelectedDate}
+              disabledDates={disabledDates}
+            />
+            {loading && <p className="mt-6 text-gray-600 font-medium animate-pulse">Loading slots...</p>}
 
-      {loading && <p className="mt-6 text-gray-600 font-medium animate-pulse">Loading slots...</p>}
+            {!loading && selectedDate && (
+              <SlotSelector
+                slots={availableSlots}
+                selectedSlot={selectedSlot}
+                onSelect={setSelectedSlot}
+              />
+            )}
+          </>
+        )}
+      </div>
 
-      {!loading && selectedDate && (
-        <SlotSelector
-          slots={availableSlots}
-          selectedSlot={selectedSlot}
-          onSelect={setSelectedSlot}
-        />
-      )}
-
-      {!loading && selectedDate && availableSlots.length > 0 && (
+      {!loading && openDate && selectedDate && availableSlots.length > 0 && (
         <div className="flex justify-center mt-10">
           <button
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-10 rounded-xl text-xl shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-xl text-xl shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!selectedSlot}
             onClick={bookSlot}
           >
@@ -96,7 +113,6 @@ export default function BookingPage() {
           </button>
         </div>
       )}
-
       {successMessage && (
         <div className="mt-8 bg-green-50 border-l-4 border-green-500 text-green-700 px-6 py-4 rounded-lg shadow-md">
           {successMessage}
