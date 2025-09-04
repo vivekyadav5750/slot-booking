@@ -21,6 +21,7 @@
     "firebase-admin": "^11.0.0"
   },
   "devDependencies": {
+    "@repo/typescript-config": "*",
     "@types/express": "^5.0.3",
     "typescript": "5.9.2",
     "@tailwindcss/postcss": "^4.1.12",
